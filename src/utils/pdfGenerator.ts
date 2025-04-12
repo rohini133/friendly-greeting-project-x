@@ -161,10 +161,10 @@ export const generatePDF = (bill: BillWithItems): Blob => {
     currentY += 6;
     
     // Total amount
-    doc.text(`Total :`, margin, currentY);
-    doc.setFontSize(11);
-    doc.text(`${formatCurrency(bill.total, false)}`, pageWidth - margin, currentY, { align: "right" });
-    currentY += 10;
+    // doc.text(`Total :`, margin, currentY);
+    // doc.setFontSize(11);
+    // doc.text(`${formatCurrency(bill.total, false)}`, pageWidth - margin, currentY, { align: "right" });
+    // currentY += 10;
     
     // Add payment details
     doc.setFont("helvetica", "normal");
@@ -174,8 +174,8 @@ export const generatePDF = (bill: BillWithItems): Blob => {
     currentY += 6;
     
     // Add UPI details
-    doc.text(`UPI No. 0`, margin, currentY);
-    doc.text(`Bank :`, pageWidth / 2, currentY);
+    // doc.text(`UPI No. 0`, margin, currentY);
+    // doc.text(`Bank :`, pageWidth / 2, currentY);
     currentY += 15;
     
     // Thank you message

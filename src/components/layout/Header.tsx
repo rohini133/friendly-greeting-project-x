@@ -37,10 +37,9 @@ export const Header = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center">
-                <ShoppingCart className="h-8 w-8 text-primary dark:text-white" />
-                <span className="ml-2 text-xl font-bold text-gray-800 dark:text-white">Vivaas</span>
-              </Link>
+            <Link to="/" className="flex items-center">
+              <img src="/src/assets/VivaasLogo-1.png" alt="Logo" className="h-16 w-7xl" />
+            </Link>
             </div>
             {isLoggedIn && (
               <nav className="hidden md:ml-6 md:flex md:space-x-8">

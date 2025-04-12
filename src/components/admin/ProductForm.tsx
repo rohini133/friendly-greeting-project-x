@@ -212,10 +212,11 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const renderAuthWarning = () => {
     if (isAuthenticated === false) {
       return (
-        <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mb-4">
+        <div className="">
+          {/*  <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mb-4">
           <p className="text-amber-800 font-medium">Authentication Required</p>
           <p className="text-amber-700 text-sm">You are not currently authenticated with the database. 
-          Changes may not be saved. Please log out and log back in to reauthenticate.</p>
+          Changes may not be saved. Please log out and log back in to reauthenticate.</p> */}
         </div>
       );
     }

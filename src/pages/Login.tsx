@@ -55,11 +55,11 @@ const Login = () => {
           <div className="grid md:grid-cols-5 min-h-[550px]">
             <div className="login-sidebar md:col-span-2 p-8 flex flex-col justify-between" style={{ backgroundColor: '#ea384c', color: 'white' }}>
               <div>
-                <div className="flex items-center mb-6">
+                {/* <div className="flex items-center mb-6">
                   <ShoppingCart className="h-10 w-10 text-white" />
                   <h1 className="text-2xl font-bold ml-2">Vivaas</h1>
-                </div>
-                <h2 className="text-xl font-bold mb-4">Welcome to the Ultimate Retail Management System</h2>
+                </div> */}
+                <h2 className="text-xl font-bold mb-4 mt-6">Welcome to the Ultimate Retail Management System</h2>
                 <p className="text-white/80 mb-6">
                   Streamline your operations with our comprehensive platform designed specifically for retail businesses.
                 </p>
@@ -245,13 +245,13 @@ const Login = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 rounded-lg p-3">
                       <div className="text-left">
                         <p className="font-semibold text-orange-600">Admin:</p>
-                        <p>Username: rohini25</p>
-                        <p>Password: Rohini@123</p>
+                        <p>Username: owner</p>
+                        <p>Password: owner@123</p>
                       </div>
                       <div className="text-left">
                         <p className="font-semibold text-blue-600">Cashier:</p>
-                        <p>Username: balaji12</p>
-                        <p>Password: Balaji@25</p>
+                        <p>Username: cashier</p>
+                        <p>Password: cashier@123</p>
                       </div>
                     </div>
                   </div>
