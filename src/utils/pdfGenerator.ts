@@ -1,4 +1,3 @@
-
 import { BillWithItems } from "@/data/models";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
