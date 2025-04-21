@@ -140,7 +140,10 @@ export const ShoppingCart = ({
           <div className="space-y-1">
             {cartItems.map((item) => (
               <CartItemRow
-                key={item.product.id}
+                key={
+                  item.product.id +
+                  (item.selectedSize ? `-${item.selectedSize}` : "")
+                }
                 item={item}
                 onUpdateQuantity={onUpdateCartItem}
                 onRemoveItem={onRemoveCartItem}

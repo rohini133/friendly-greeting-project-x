@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,6 @@ export const ProductSearch = ({ onAddToCart }: ProductSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   
-  // Use React Query for better caching and performance
   const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: getProducts,
@@ -26,7 +24,6 @@ export const ProductSearch = ({ onAddToCart }: ProductSearchProps) => {
     refetchOnWindowFocus: false,
   });
 
-  // Filter products based on search term
   const filteredProducts = searchTerm.trim() === ""
     ? []  // Don't show any products until user searches
     : allProducts.filter((product) =>

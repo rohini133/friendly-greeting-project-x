@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Product } from "@/types/supabase-extensions";
@@ -7,124 +6,141 @@ import { supabase } from "@/integrations/supabase/client";
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedSize?: string;
 }
 
 export function useBillingCart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
 
-  const addToCart = (product: Product) => {
-    const existingItemIndex = cartItems.findIndex(
-      (item) => item.product.id === product.id
-    );
-
-    if (existingItemIndex >= 0) {
-      const newCartItems = [...cartItems];
-      const currentQuantity = newCartItems[existingItemIndex].quantity;
-      
-      if (currentQuantity < product.stock) {
-        newCartItems[existingItemIndex] = {
-          ...newCartItems[existingItemIndex],
-          quantity: currentQuantity + 1,
-        };
-        setCartItems(newCartItems);
-        
-        toast({
-          title: "Item quantity updated",
-          description: `${product.name} quantity increased to ${currentQuantity + 1}`,
-        });
+  const addToCart = (product: Product, selectedSize?: string) => {
+    if (product.sizes_stock && selectedSize) {
+      const sizeQty = product.sizes_stock[selectedSize] || 0;
+      if (sizeQty <= 0) {
+        toast({ title: "Out of stock", description: `${product.name} (${selectedSize}) is out of stock.`, variant: "destructive" });
+        return;
+      }
+      const existingIdx = cartItems.findIndex(
+        (item) => item.product.id === product.id && item.selectedSize === selectedSize
+      );
+      if (existingIdx >= 0) {
+        const currentQuantity = cartItems[existingIdx].quantity;
+        if (currentQuantity < sizeQty) {
+          const updated = [...cartItems];
+          updated[existingIdx].quantity += 1;
+          setCartItems(updated);
+        } else {
+          toast({ title: "Max stock reached", description: `Cannot add more of ${product.name} (${selectedSize})`, variant: "destructive" });
+        }
       } else {
-        toast({
-          title: "Maximum stock reached",
-          description: `Cannot add more ${product.name} as the maximum stock (${product.stock}) has been reached.`,
-          variant: "destructive",
-        });
+        setCartItems([...cartItems, { product, quantity: 1, selectedSize }]);
+        toast({ title: "Added to cart", description: `${product.name} (${selectedSize}) added.` });
       }
     } else {
-      setCartItems([...cartItems, { product, quantity: 1 }]);
-      
-      toast({
-        title: "Item added to cart",
-        description: `${product.name} has been added to the cart`,
-      });
+      const existingItemIndex = cartItems.findIndex(
+        (item) => item.product.id === product.id && !item.selectedSize
+      );
+      if (existingItemIndex >= 0) {
+        const currentQuantity = cartItems[existingItemIndex].quantity;
+        if (currentQuantity < product.stock) {
+          const updated = [...cartItems];
+          updated[existingItemIndex].quantity += 1;
+          setCartItems(updated);
+        } else {
+          toast({ title: "Max stock reached", description: `Cannot add more of ${product.name}.`, variant: "destructive" });
+        }
+      } else {
+        setCartItems([...cartItems, { product, quantity: 1 }]);
+        toast({ title: "Added to cart", description: `${product.name} added to cart.` });
+      }
     }
   };
 
   const updateQuantity = (item: CartItem, newQuantity: number) => {
+    const product = item.product;
+    if (product.sizes_stock && item.selectedSize) {
+      const maxQty = product.sizes_stock[item.selectedSize] || 0;
+      if (newQuantity > maxQty) {
+        toast({ title: "Max stock reached", description: `Cannot set more than stock for ${product.name} (${item.selectedSize})`, variant: "destructive" });
+        return;
+      }
+    } else if (!item.selectedSize) {
+      if (newQuantity > product.stock) {
+        toast({ title: "Max stock reached", description: `Cannot set more than stock for ${product.name}.`, variant: "destructive" });
+        return;
+      }
+    }
     if (newQuantity <= 0) {
       removeItem(item);
       return;
     }
-
-    if (newQuantity > item.product.stock) {
-      toast({
-        title: "Maximum stock reached",
-        description: `Cannot add more ${item.product.name} as the maximum stock (${item.product.stock}) has been reached.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newCartItems = cartItems.map((cartItem) =>
-      cartItem.product.id === item.product.id
-        ? { ...cartItem, quantity: newQuantity }
-        : cartItem
+    setCartItems((prev) =>
+      prev.map((cartItem) =>
+        cartItem.product.id === item.product.id &&
+        (cartItem.selectedSize === item.selectedSize)
+          ? { ...cartItem, quantity: newQuantity }
+          : cartItem
+      )
     );
-
-    setCartItems(newCartItems);
   };
 
   const removeItem = (item: CartItem) => {
-    const newCartItems = cartItems.filter(
-      (cartItem) => cartItem.product.id !== item.product.id
+    setCartItems((prev) =>
+      prev.filter(
+        (cartItem) =>
+          !(
+            cartItem.product.id === item.product.id &&
+            cartItem.selectedSize === item.selectedSize
+          )
+      )
     );
-    setCartItems(newCartItems);
-    
     toast({
       title: "Item removed",
-      description: `${item.product.name} has been removed from the cart`,
+      description: `${item.product.name}${item.selectedSize ? " (" + item.selectedSize + ")" : ""} removed from cart.`,
     });
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-  };
+  const clearCart = () => setCartItems([]);
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => {
-      const discountedPrice = 
-        item.product.price * (1 - item.product.discountPercentage / 100);
-      return total + discountedPrice * item.quantity;
+  const calculateSubtotal = () =>
+    cartItems.reduce((total, item) => {
+      const price = item.product.price * (1 - item.product.discountPercentage / 100);
+      return total + price * item.quantity;
     }, 0);
-  };
 
-  const calculateTotal = () => {
-    return calculateSubtotal();
-  };
-  
-  // Update stock in the database
+  const calculateTotal = () => calculateSubtotal();
+
   const updateStock = async (item: CartItem) => {
-    try {
-      console.log(`Updating stock for product ${item.product.id}, quantity ${item.quantity}`);
-      
-      // Update the products table directly
+    if (item.product.sizes_stock && item.selectedSize) {
+      const sizesStock = { ...item.product.sizes_stock };
+      sizesStock[item.selectedSize] = Math.max((sizesStock[item.selectedSize] || 0) - item.quantity, 0);
+      const newTotalStock = Object.values(sizesStock).reduce((a, b) => a + b, 0);
       const { error } = await supabase
         .from('products')
-        .update({ 
-          stock: item.product.stock - item.quantity,
-          updated_at: new Date().toISOString()
+        .update({
+          sizes_stock: sizesStock,
+          stock: newTotalStock,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', item.product.id);
-      
+      if (error) {
+        console.error("Error updating size stock:", error);
+        return false;
+      }
+      return true;
+    } else {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          stock: item.product.stock - item.quantity,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', item.product.id);
       if (error) {
         console.error("Error updating stock:", error);
         return false;
       }
-      
       return true;
-    } catch (error) {
-      console.error("Error in updateStock:", error);
-      return false;
     }
   };
 
@@ -136,6 +152,6 @@ export function useBillingCart() {
     clearCart,
     calculateSubtotal,
     calculateTotal,
-    updateStock
+    updateStock,
   };
 }

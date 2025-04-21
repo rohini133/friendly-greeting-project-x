@@ -115,6 +115,7 @@ export type Database = {
           name: string
           price: number
           size: string | null
+          sizes_stock: Json | null
           stock: number
           updated_at: string
         }
@@ -133,6 +134,7 @@ export type Database = {
           name: string
           price: number
           size?: string | null
+          sizes_stock?: Json | null
           stock?: number
           updated_at?: string
         }
@@ -151,6 +153,7 @@ export type Database = {
           name?: string
           price?: number
           size?: string | null
+          sizes_stock?: Json | null
           stock?: number
           updated_at?: string
         }

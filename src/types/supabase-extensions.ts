@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string;
   createdAt: string;
@@ -21,6 +20,7 @@ export interface Product {
   color?: string;
   size?: string;
   itemNumber: string;
+  sizes_stock?: Record<string, number>; // ADD: Optional sizes_stock field for multiple sizes/stock
 }
 
 export interface BillItem {
@@ -76,6 +76,7 @@ export interface BillWithItems extends Bill {
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedSize?: string; // Which size was selected for this item (for size-stocked products)
 }
 
 export interface DashboardStats {

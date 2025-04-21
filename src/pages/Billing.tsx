@@ -32,15 +32,22 @@ const Billing = () => {
   const [discount, setDiscount] = useState<{ value: number, type: "percent" | "amount" }>({ value: 0, type: "percent" });
   const { toast } = useToast();
 
-  const handleItemSelect = (product: Product) => {
-    if (product.stock > 0) {
-      addToCart(product);
-    } else {
-      toast({
-        title: "Out of stock",
-        description: `${product.name} is currently out of stock.`,
-        variant: "destructive",
-      });
+  const handleItemSelect = (product, size) => {
+    if (product.sizes_stock && size) {
+      if (product.sizes_stock[size] <= 0) {
+        toast({
+          title: "Out of stock",
+          description: `${product.name} (${size}) is out of stock.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      addToCart(product, size);
+    } else if (!product.sizes_stock || Object.keys(product.sizes_stock).length === 0) {
+      if (product.stock > 0) addToCart(product);
+      else {
+        toast({ title: "Out of stock", description: `${product.name} is out of stock.`, variant: "destructive" });
+      }
     }
   };
 
