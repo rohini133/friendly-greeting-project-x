@@ -1,3 +1,4 @@
+
 import { BillWithItems } from "@/data/models";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -385,15 +386,15 @@ export const generateSalesReportPDF = (reportData: any, period: string): Blob =>
     
     // Add summary data
     if (period === "products" && reportData.productSalesDetails) {
-      // Create data for the table with properly formatted numbers
+      // Improved number formatting for the table
       const tableData = reportData.productSalesDetails.map((product: any) => [
         product.name,
         product.category,
         product.totalQuantity.toString(),
-        formatNumberPlain(product.buyingPrice),
-        formatNumberPlain(product.sellingPrice),
-        formatNumberPlain(product.totalRevenue),
-        formatProfitPlain(product.totalProfit)
+        `₹${formatNumber(product.buyingPrice)}`,
+        `₹${formatNumber(product.sellingPrice)}`,
+        `₹${formatNumber(product.totalRevenue)}`,
+        formatProfit(product.totalProfit)
       ]);
       
       // Add product sales details table with fixed formatting
@@ -402,7 +403,21 @@ export const generateSalesReportPDF = (reportData: any, period: string): Blob =>
         body: tableData,
         startY: 40,
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        alternateRowStyles: { fillColor: [240, 240, 240] }
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        styles: {
+          cellPadding: 3,
+          fontSize: 9,
+          lineColor: [44, 62, 80],
+          lineWidth: 0.1,
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+          2: { halign: 'center' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'right' }
+        }
       });
       
       // Calculate total values
@@ -412,37 +427,43 @@ export const generateSalesReportPDF = (reportData: any, period: string): Blob =>
       
       // Add summary line with clean, consistent formatting
       const finalY = (doc as any).lastAutoTable.finalY || 150;
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       
       // Format the summary text with clean number formatting
-      const summaryText = `Summary: ${reportData.productSalesDetails.length} products, ${totalQuantity} units sold, ${formatNumberPlain(totalRevenue)} revenue, ${formatProfitPlain(totalProfit)} profit`;
-      doc.text(summaryText, 14, finalY + 10);
+      doc.text(`Summary: ${reportData.productSalesDetails.length} products, ${totalQuantity} units sold, ₹${formatNumber(totalRevenue)} revenue, ${formatProfit(totalProfit)} profit`, 14, finalY + 15);
       
       // Add insights with clean, consistent formatting
       if (reportData.mostSellingProduct) {
-        doc.text(`Most Selling Product: ${reportData.mostSellingProduct.name} (${reportData.mostSellingProduct.totalQuantity} units)`, 14, finalY + 20);
+        doc.text(`Most Selling Product: ${reportData.mostSellingProduct.name} (${reportData.mostSellingProduct.totalQuantity} units)`, 14, finalY + 25);
       }
       
       if (reportData.mostProfitableProduct) {
-        doc.text(
-          `Most Profitable Product: ${reportData.mostProfitableProduct.name} (${formatProfitPlain(reportData.mostProfitableProduct.totalProfit)})`, 
-          14, 
-          finalY + 30
-        );
+        doc.text(`Most Profitable Product: ${reportData.mostProfitableProduct.name} (${formatProfit(reportData.mostProfitableProduct.totalProfit)})`, 14, finalY + 35);
       }
     } else {
       // For other reports (daily, weekly, monthly, yearly)
       // Add a simple summary table based on the period
       const data = reportData[`${period}Sales`] || [];
       
+      // Format numeric values properly
+      const formattedData = data.map((item: any) => [
+        item.day || item.week || item.name || item.year || 'Unknown',
+        `₹${formatNumber(item.sales)}`
+      ]);
+      
       autoTable(doc, {
         head: [['Period', 'Sales Amount']],
-        body: data.map((item: any) => [
-          item.day || item.week || item.name || item.year || 'Unknown',
-          formatNumberPlain(item.sales)
-        ]),
-        startY: 40
+        body: formattedData,
+        startY: 40,
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        styles: {
+          cellPadding: 5,
+          fontSize: 10
+        },
+        columnStyles: {
+          1: { halign: 'right' }
+        }
       });
     }
     
@@ -475,32 +496,27 @@ export const generateSalesReportExcel = (reportData: any, period: string): Blob 
       // Product sales report CSV
       csv = 'Product,Category,Brand,Qty Sold,Buying Price,Selling Price,Revenue,Profit\n';
       
-      // Add data rows
+      // Add data rows with proper number formatting (no special characters)
       reportData.productSalesDetails.forEach((product: any) => {
-        // Format profit correctly for CSV (use negative numbers directly)
-        const profitValue = product.totalProfit;
+        const profit = formatNumberPlain(product.totalProfit);
         
-        csv += `"${product.name}","${product.category}","${product.brand}",${product.totalQuantity},${product.buyingPrice},${product.sellingPrice},${product.totalRevenue},${profitValue}\n`;
+        csv += `"${product.name}","${product.category}","${product.brand}",${product.totalQuantity},${formatNumberPlain(product.buyingPrice)},${formatNumberPlain(product.sellingPrice)},${formatNumberPlain(product.totalRevenue)},${profit}\n`;
       });
       
-      // Add summary row
+      // Add summary row with clean formatting
       const totalQuantity = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalQuantity, 0);
       const totalRevenue = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalRevenue, 0);
       const totalProfit = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalProfit, 0);
       
-      csv += `\n"TOTAL","","",${totalQuantity},"","",${totalRevenue},${totalProfit}\n`;
+      csv += `\n"TOTAL","","",${totalQuantity},"","",${formatNumberPlain(totalRevenue)},${formatNumberPlain(totalProfit)}\n`;
       
-      // Add insights
+      // Add insights with clean formatting
       if (reportData.mostSellingProduct) {
         csv += `\n"Most Selling Product: ${reportData.mostSellingProduct.name} (${reportData.mostSellingProduct.totalQuantity} units)"\n`;
       }
       
       if (reportData.mostProfitableProduct) {
-        const profitText = reportData.mostProfitableProduct.totalProfit < 0 ? 
-          `-${Math.abs(reportData.mostProfitableProduct.totalProfit)}` : 
-          `${reportData.mostProfitableProduct.totalProfit}`;
-          
-        csv += `"Most Profitable Product: ${reportData.mostProfitableProduct.name} (${profitText})"\n`;
+        csv += `"Most Profitable Product: ${reportData.mostProfitableProduct.name} (${formatNumberPlain(reportData.mostProfitableProduct.totalProfit)})"\n`;
       }
       
     } else {
@@ -515,10 +531,10 @@ export const generateSalesReportExcel = (reportData: any, period: string): Blob 
       
       csv = `${periodName},Sales Amount\n`;
       
-      // Add data rows
+      // Add data rows with clean number formatting
       data.forEach((item: any) => {
         const periodValue = item.day || item.week || item.name || item.year || 'Unknown';
-        csv += `"${periodValue}",${item.sales}\n`;
+        csv += `"${periodValue}",${formatNumberPlain(item.sales)}\n`;
       });
     }
     
@@ -529,28 +545,28 @@ export const generateSalesReportExcel = (reportData: any, period: string): Blob 
   }
 };
 
-// Helper function for formatting currency values in a clean way for PDF display
+// Improved helper function for formatting currency values in a clean way for PDF display
 // This avoids the issue with special characters in the PDF
-function formatNumberPlain(amount: number): string {
+function formatNumber(amount: number): string {
   if (typeof amount !== 'number') {
-    return '₹0.00';
+    return '0.00';
   }
   
-  return '₹' + amount.toLocaleString('en-IN', {
+  return amount.toLocaleString('en-IN', {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
     useGrouping: true
   });
 }
 
-// Helper function specifically for formatting profit values in a clean way
-function formatProfitPlain(amount: number): string {
+// Improved helper function for formatting profit values with proper negative sign
+function formatProfit(amount: number): string {
   if (typeof amount !== 'number') {
     return '₹0.00';
   }
   
   if (amount < 0) {
-    return '–₹' + Math.abs(amount).toLocaleString('en-IN', {
+    return '-₹' + Math.abs(amount).toLocaleString('en-IN', {
       maximumFractionDigits: 2,
       minimumFractionDigits: 2,
       useGrouping: true
@@ -562,4 +578,13 @@ function formatProfitPlain(amount: number): string {
     minimumFractionDigits: 2,
     useGrouping: true
   });
+}
+
+// Helper function for formatting numbers for CSV (no currency symbol)
+function formatNumberPlain(amount: number): string {
+  if (typeof amount !== 'number') {
+    return '0.00';
+  }
+  
+  return amount.toFixed(2);
 }
