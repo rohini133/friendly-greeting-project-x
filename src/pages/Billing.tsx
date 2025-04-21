@@ -1,136 +1,206 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { ProductSearch } from "@/components/billing/ProductSearch";
 import { ShoppingCart } from "@/components/billing/ShoppingCart";
-import { useBillingCart } from "@/hooks/useBillingCart";
-import { useNavigate } from 'react-router-dom';
-import { Product } from "@/types/supabase-extensions";
 import { CheckoutDialog } from "@/components/billing/CheckoutDialog";
-import { CustomerInfo } from "@/types/supabase-extensions";
+import { BillReceipt } from "@/components/billing/BillReceipt";
 import { useToast } from "@/components/ui/use-toast";
+import { useBillingCart } from "@/hooks/useBillingCart";
 import { createBill } from "@/services/billService";
-import { BillWithItems } from "@/data/models";
+import { Bill, Product } from "@/types/supabase-extensions";
+import { Button } from "@/components/ui/button";
+import { useProductsSync } from "@/hooks/useProductsSync";
+import { getProductStockStatus } from "@/services/product/productHelpers";
 
-const Billing = () => {
-  const [showSearch, setShowSearch] = useState(true);
-  const { 
-    cartItems, 
-    addToCart, 
-    updateQuantity, 
-    removeItem, 
-    clearCart, 
-    calculateSubtotal, 
-    calculateTotal, 
-    updateStock 
-  } = useBillingCart();
-  const navigate = useNavigate();
+function Billing() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({});
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentBill, setCurrentBill] = useState<BillWithItems | null>(null);
-  const [discount, setDiscount] = useState<{ value: number, type: "percent" | "amount" }>({ value: 0, type: "percent" });
-  const { toast } = useToast();
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [currentBill, setCurrentBill] = useState<Bill | null>(null);
+  const checkoutDialogRef = useRef(null);
+  const { products, isLoading, error } = useProductsSync();
+  const [customerInfo, setCustomerInfo] = useState({
+    name: "",
+    phone: "",
+    email: "",
+  });
+  const [paymentMethod, setPaymentMethod] = useState("cash");
 
-  const handleItemSelect = (product, size) => {
-    if (product.sizes_stock && size) {
-      if (product.sizes_stock[size] <= 0) {
-        toast({
-          title: "Out of stock",
-          description: `${product.name} (${size}) is out of stock.`,
-          variant: "destructive",
-        });
-        return;
-      }
-      addToCart(product, size);
-    } else if (!product.sizes_stock || Object.keys(product.sizes_stock).length === 0) {
-      if (product.stock > 0) addToCart(product);
-      else {
-        toast({ title: "Out of stock", description: `${product.name} is out of stock.`, variant: "destructive" });
-      }
+  const {
+    cartItems,
+    addToCart,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    subtotal,
+    tax,
+    total,
+    discountAmount,
+    discountType,
+    discountValue,
+    applyDiscount,
+    removeDiscount,
+  } = useBillingCart();
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Sync Error",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to the cart before checking out.",
+      });
+      return;
+    }
+
+    setIsCheckoutOpen(true);
+  };
+
+  const handleCreateBill = async () => {
+    try {
+      const billData = {
+        cartItems: cartItems,
+        subtotal: subtotal,
+        tax: tax,
+        total: total,
+        customerName: customerInfo.name,
+        customerPhone: customerInfo.phone,
+        customerEmail: customerInfo.email,
+        paymentMethod: paymentMethod,
+        discountAmount: discountAmount,
+        discountType: discountType,
+        discountValue: discountValue,
+      };
+
+      const newBill = await createBill(billData);
+      setCurrentBill(newBill);
+      clearCart();
+      setIsCheckoutOpen(false);
+      setIsReceiptOpen(true);
+
+      toast({
+        title: "Bill created",
+        description: `Bill #${newBill.id} created successfully.`,
+      });
+    } catch (error: any) {
+      console.error("Bill creation error:", error);
+      toast({
+        title: "Bill creation failed",
+        description: error.message || "Failed to create bill. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleCheckout = async (customerData: CustomerInfo, paymentMethod: string, discountArg: { value: number, type: "percent" | "amount" }) => {
-    if (cartItems.length === 0) {
+  const { toast } = useToast();
+
+  // Fix type signature to properly accept size parameter
+  const handleAddToCart = (product: Product, size?: string) => {
+    if (getProductStockStatus(product) === "out-of-stock") {
       toast({
-        title: "Empty cart",
-        description: "Please add items to the cart before proceeding to checkout.",
+        title: "Cannot add to cart",
+        description: `${product.name} is out of stock.`,
         variant: "destructive",
       });
       return;
     }
-    setIsSubmitting(true);
-    try {
-      let subtotal = calculateSubtotal();
-      let discountAmount = 0;
-      if (discountArg.type === "percent") discountAmount = subtotal * (discountArg.value / 100);
-      else discountAmount = discountArg.value;
-      if (discountAmount < 0) discountAmount = 0;
-      if (discountAmount > subtotal) discountAmount = subtotal;
-      const total = subtotal - discountAmount;
 
-      const billWithItems = await createBill({
-        cartItems,
-        subtotal,
-        tax: 0,
-        discountAmount,
-        discountType: discountArg.type,
-        discountValue: discountArg.value,
-        total,
-        customerName: customerData.name,
-        customerPhone: customerData.phone,
-        customerEmail: customerData.email,
-        paymentMethod,
-        status: 'completed'
-      });
-
-      console.log("Created bill with items:", billWithItems);
-
-      for (const item of cartItems) {
-        await updateStock(item);
-      }
-
-      setCurrentBill(billWithItems);
-      setIsCheckoutOpen(true);
-      clearCart();
-    } catch (error) {
-      console.error("Checkout error:", error);
+    // If the product has sizes_stock and no size was selected
+    if (
+      product.sizes_stock && 
+      Object.keys(product.sizes_stock).length > 0 && 
+      !size
+    ) {
       toast({
-        title: "Checkout failed",
-        description: "There was an error processing your bill. Please try again.",
+        title: "Size required",
+        description: "Please select a size for this product.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    // Check size-specific stock
+    if (
+      size && 
+      product.sizes_stock && 
+      (product.sizes_stock[size] === undefined || product.sizes_stock[size] <= 0)
+    ) {
+      toast({
+        title: "Size out of stock",
+        description: `${product.name} in size ${size} is out of stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Add to cart with selected size
+    addToCart(product, size);
+    
+    toast({
+      title: "Added to cart",
+      description: `${product.name}${size ? ` (${size})` : ""} added to cart.`,
+    });
   };
 
   return (
-    <PageContainer title="Billing" subtitle="Create new bills and process payments">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5">
-          <ProductSearch onAddToCart={handleItemSelect} />
+    <PageContainer title="Billing" subtitle="Create and manage bills">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <ProductSearch 
+            onAddToCart={handleAddToCart} 
+          />
+          {isLoading && <div>Loading products...</div>}
+          {error && <div>Error: {error}</div>}
         </div>
-        <div className="lg:col-span-7">
+        
+        <div>
           <ShoppingCart
-            cartItems={cartItems}
-            onUpdateCartItem={updateQuantity}
-            onRemoveCartItem={removeItem}
-            onCheckoutComplete={handleCheckout}
-            onCartClear={clearCart}
-            total={calculateTotal()}
-            isSubmitting={isSubmitting}
+            items={cartItems}
+            subtotal={subtotal}
+            tax={tax}
+            total={total}
+            discountAmount={discountAmount}
+            discountType={discountType}
+            discountValue={discountValue}
+            onUpdateQuantity={updateQuantity}
+            onRemoveItem={removeItem}
+            onApplyDiscount={applyDiscount}
+            onRemoveDiscount={removeDiscount}
+            onCheckout={handleCheckout}
           />
         </div>
       </div>
-      <CheckoutDialog 
-        open={isCheckoutOpen}
-        onOpenChange={setIsCheckoutOpen}
+      
+      <CheckoutDialog
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        discountAmount={discountAmount}
+        discountType={discountType}
+        discountValue={discountValue}
+        customerInfo={customerInfo}
+        onCustomerInfoChange={(info) => setCustomerInfo(info)}
+        paymentMethod={paymentMethod}
+        onPaymentMethodChange={(method) => setPaymentMethod(method)}
+        onCreateBill={handleCreateBill}
+      />
+
+      <BillReceipt
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
         bill={currentBill}
       />
     </PageContainer>
   );
-};
+}
 
 export default Billing;

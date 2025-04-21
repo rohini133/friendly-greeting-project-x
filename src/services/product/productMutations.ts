@@ -1,3 +1,4 @@
+
 import { Product } from "@/types/supabase-extensions";
 import { supabase, debugAuthStatus, refreshSession } from "@/integrations/supabase/client";
 import { mapProductToDatabaseProduct, mapDatabaseProductToProduct } from "./productHelpers";
@@ -29,7 +30,7 @@ export const updateProduct = async (updatedProduct: Product): Promise<Product> =
       }
     }
     
-    // Prepare the product data for Supabase
+    // Prepare the product data for Supabase - remove user_id field
     const productData = mapProductToDatabaseProduct(updatedProduct);
     
     // Update in Supabase with detailed logging
@@ -110,7 +111,7 @@ export const addProduct = async (newProduct: Omit<Product, 'id' | 'createdAt' | 
       throw new Error(`Item number ${newProduct.itemNumber} already exists. Please use a unique item number.`);
     }
     
-    // Prepare product data for Supabase
+    // Prepare product data for Supabase - remove user_id field
     const productData = {
       name: newProduct.name,
       price: newProduct.price,
@@ -125,7 +126,8 @@ export const addProduct = async (newProduct: Omit<Product, 'id' | 'createdAt' | 
       description: newProduct.description || '',
       color: newProduct.color || null,
       size: newProduct.size || null,
-      user_id: newProduct.userId || 'system'
+      // Remove the user_id field from the insert operation
+      sizes_stock: newProduct.sizes_stock || null  // Make sure to include the sizes_stock field
     };
     
     console.log("Prepared data for Supabase insertion:", productData);
@@ -299,6 +301,7 @@ export function buildProductForUpdate(product) {
     size: product.size || null,
     item_number: product.itemNumber,
     updated_at: new Date().toISOString(),
-    user_id: product.userId || 'system'
+    sizes_stock: product.sizes_stock || null
+    // Removed the user_id field
   };
 }

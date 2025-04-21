@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Bill, BillItem, BillWithItems, mapRawBillToBill, mapRawBillItemToBillItem, Product } from "@/types/supabase-extensions";
 import { CartItem } from "@/hooks/useBillingCart";
@@ -132,7 +133,7 @@ export const getBillById = async (billId: string): Promise<BillWithItems | null>
         updatedAt: item.products.updated_at,
         quantity: item.products.stock || 0,
         imageUrl: item.products.image || '',
-        userId: item.products.user_id || ''
+        userId: 'system' // Default value instead of referencing non-existent column
       } : null;
 
       return {
@@ -271,7 +272,7 @@ export const getBills = async (): Promise<BillWithItems[]> => {
           updatedAt: item.products.updated_at,
           quantity: item.products.stock || 0,
           imageUrl: item.products.image || '',
-          userId: item.products.user_id || 'system'
+          userId: 'system' // Default value instead of referencing non-existent column
         } : null;
 
         return {
