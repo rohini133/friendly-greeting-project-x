@@ -6,6 +6,7 @@ import { ProductStockStatus } from "./types";
  * Determine product stock status based on current stock and threshold
  */
 export const getProductStockStatus = (product: Product): ProductStockStatus => {
+  // Simple check based on product stock and threshold
   if (product.stock === 0) {
     return "out-of-stock";
   }
@@ -31,32 +32,40 @@ export const mapDatabaseProductToProduct = (item: any): Product => {
     lowStockThreshold: item.low_stock_threshold,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
+    buyingPrice: item.buying_price || 0,
     // Handle potentially null fields
     image: item.image || '',
     description: item.description || '',
-    size: item.size || null,
-    color: item.color || null
+    color: item.color || null,
+    size: item.size || null,  // Map the size directly from the database
+    
+    // Add required fields
+    quantity: item.stock || 0, // Set quantity same as stock
+    imageUrl: item.image || '', // Use image as imageUrl
+    userId: item.user_id || 'system' // Default userId
   };
 };
 
 /**
- * Map our Product type to database fields
+ * Map product from application format to database format
  */
-export const mapProductToDatabaseProduct = (product: Product): any => {
+export function mapProductToDatabaseProduct(product: Product) {
   return {
     id: product.id,
     name: product.name,
-    price: product.price,
-    stock: product.stock,
     brand: product.brand,
     category: product.category,
-    item_number: product.itemNumber,
+    description: product.description || '',
+    price: product.price,
+    buying_price: product.buyingPrice,
     discount_percentage: product.discountPercentage,
+    stock: product.stock,
     low_stock_threshold: product.lowStockThreshold,
-    image: product.image,
-    description: product.description,
-    size: product.size,
+    image: product.image || '',
     color: product.color,
-    updated_at: new Date().toISOString()
+    size: product.size, // Map the size to the database
+    item_number: product.itemNumber,
+    updated_at: new Date().toISOString(),
+    user_id: product.userId || 'system'  // Add user_id mapping
   };
-};
+}

@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { ProductCard } from "@/components/inventory/ProductCard";
 import { Product } from "@/data/models";
-import { updateProduct } from "@/services/productService";
+import { updateProduct, deleteProduct } from "@/services/productService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,6 +104,10 @@ const Inventory = () => {
     if (!deletingProduct) return;
 
     try {
+      // Attempt to delete from database
+      await deleteProduct(deletingProduct.id);
+      
+      // Update UI after successful deletion
       setFilteredProducts(filtered => filtered.filter(p => p.id !== deletingProduct.id));
       setIsDeleteDialogOpen(false);
       
@@ -111,6 +116,7 @@ const Inventory = () => {
         description: `${deletingProduct.name} has been deleted successfully.`,
       });
     } catch (error) {
+      console.error("Delete error:", error);
       toast({
         title: "Delete failed",
         description: "Failed to delete product. Please try again.",

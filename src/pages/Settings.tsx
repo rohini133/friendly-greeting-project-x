@@ -39,9 +39,9 @@ const Settings = () => {
   
   // Receipt settings
   const [receiptSettings, setReceiptSettings] = useState({
-    showLogo: true,
+    showLogo: false,
     showStoreInfo: true,
-    showTaxInfo: true,
+    showTaxInfo: false,
     footerText: "Thank you for shopping with us!",
     printAutomatically: false,
     sendReceiptEmail: true,

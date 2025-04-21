@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare, Printer, Download } from "lucide-react";
+import { Printer, Download, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { sendBillToWhatsApp } from "@/services/billService";
 import { BillWithItems } from "@/data/models";
@@ -9,11 +9,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { generatePDF } from "@/utils/pdfGenerator";
+import { generatePDF, formatBillNumber } from "@/utils/pdfGenerator";
+import { Loader2 } from "lucide-react";
 
 interface CheckoutDialogProps {
   open: boolean;
@@ -34,6 +34,12 @@ export const CheckoutDialog = ({
   if (!bill) {
     return null;
   }
+
+  console.log("CheckoutDialog received bill:", bill);
+  console.log("Bill has items:", bill.items?.length || 0);
+
+  // Format bill number as a simple digit
+  const simpleBillNumber = formatBillNumber(bill.id);
 
   const handleSendWhatsApp = async () => {
     if (!bill.id) return;
@@ -139,7 +145,7 @@ export const CheckoutDialog = ({
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Vivaas-Receipt-${bill.id}.pdf`;
+      link.download = `Vivaas-Receipt-${simpleBillNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       
@@ -167,19 +173,20 @@ export const CheckoutDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Bill Generated Successfully</DialogTitle>
           <DialogDescription>
-            Bill #{bill.id} has been created and inventory has been updated.
+            Bill #{simpleBillNumber} has been created and inventory has been updated.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+
+        <div className="py-6 space-y-4">
           <p className="mb-4">What would you like to do next?</p>
           
           <Button 
-            className="w-full mb-3"
-            style={{ backgroundColor: '#ea384c', color: 'white' }}
+            className="w-full"
+            variant="destructive"
             onClick={handlePrintReceipt}
             disabled={isPrinting}
           >
@@ -192,8 +199,8 @@ export const CheckoutDialog = ({
           </Button>
           
           <Button 
-            className="w-full mb-3"
-            variant="secondary"
+            className="w-full"
+            variant="default"
             onClick={handleDownloadReceipt}
             disabled={isDownloading}
           >
@@ -207,8 +214,8 @@ export const CheckoutDialog = ({
           
           {bill.customerPhone && (
             <Button 
-              className="w-full mb-3"
-              style={{ backgroundColor: '#ea384c', color: 'white' }}
+              className="w-full"
+              variant="destructive"
               onClick={handleSendWhatsApp}
               disabled={isSendingWhatsApp}
             >
