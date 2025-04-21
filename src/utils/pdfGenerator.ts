@@ -373,116 +373,136 @@ function getPaymentMethodName(method: string): string {
 export const generateSalesReportPDF = (reportData: any, period: string): Blob => {
   try {
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(18);
-    doc.text(`Vivaas - Sales Report (${period})`, doc.internal.pageSize.getWidth() / 2, 20, { align: "center" });
-    
+    doc.text(
+      `Vivaas - Sales Report (${period})`,
+      doc.internal.pageSize.getWidth() / 2,
+      20,
+      { align: "center" }
+    );
+
     // Add date range
     const currentDate = new Date().toLocaleDateString();
     doc.setFontSize(10);
-    doc.text(`Generated on: ${currentDate}`, doc.internal.pageSize.getWidth() / 2, 30, { align: "center" });
-    
-    // Add summary data
+    doc.text(
+      `Generated on: ${currentDate}`,
+      doc.internal.pageSize.getWidth() / 2,
+      30,
+      { align: "center" }
+    );
+
+    // TABLE DATA for 'products'
     if (period === "products" && reportData.productSalesDetails) {
-      // Improved number formatting for the table
-      const tableData = reportData.productSalesDetails.map((product: any) => [
+      // Prepare data and columns
+      const tableBody = reportData.productSalesDetails.map((product: any) => [
         product.name,
         product.category,
         product.totalQuantity.toString(),
-        `₹${formatNumber(product.buyingPrice)}`,
-        `₹${formatNumber(product.sellingPrice)}`,
-        `₹${formatNumber(product.totalRevenue)}`,
-        formatProfit(product.totalProfit)
+        formatNumberPlain(product.buyingPrice),
+        formatNumberPlain(product.sellingPrice),
+        formatNumberPlain(product.totalRevenue),
+        formatNumberPlain(product.totalProfit),
       ]);
-      
-      // Add product sales details table with fixed formatting
+
+      // AutoTable with professional formatting
       autoTable(doc, {
-        head: [['Product', 'Category', 'Qty Sold', 'Buying Price', 'Selling Price', 'Revenue', 'Profit']],
-        body: tableData,
+        head: [
+          [
+            "Product",
+            "Category",
+            "Qty Sold",
+            "Buying Price",
+            "Selling Price",
+            "Revenue",
+            "Profit",
+          ],
+        ],
+        body: tableBody,
         startY: 40,
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        alternateRowStyles: { fillColor: [240, 240, 240] },
         styles: {
+          fontSize: 10,
           cellPadding: 3,
-          fontSize: 9,
-          lineColor: [44, 62, 80],
-          lineWidth: 0.1,
+          halign: "left",
+          valign: "middle",
+          overflow: "linebreak",
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
         },
         columnStyles: {
-          0: { fontStyle: 'bold' },
-          2: { halign: 'center' },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' }
-        }
+          0: { cellWidth: 34, halign: "left" }, // Product
+          1: { cellWidth: 27, halign: "left" }, // Category
+          2: { cellWidth: 17, halign: "right" }, // Qty Sold
+          3: { cellWidth: 24, halign: "right" }, // Buying Price
+          4: { cellWidth: 24, halign: "right" }, // Selling Price
+          5: { cellWidth: 24, halign: "right" }, // Revenue
+          6: { cellWidth: 24, halign: "right" }, // Profit
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: function (data) {
+          // Set number formatting (no currency symbol, right aligned for all amount columns)
+          if (
+            data.section === "body" &&
+            (data.column.index === 2 ||
+              data.column.index === 3 ||
+              data.column.index === 4 ||
+              data.column.index === 5 ||
+              data.column.index === 6)
+          ) {
+            data.cell.styles.halign = 'right';
+          }
+        },
       });
-      
-      // Calculate total values
-      const totalQuantity = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalQuantity, 0);
-      const totalRevenue = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalRevenue, 0);
-      const totalProfit = reportData.productSalesDetails.reduce((sum: number, p: any) => sum + p.totalProfit, 0);
-      
-      // Add summary line with clean, consistent formatting
-      const finalY = (doc as any).lastAutoTable.finalY || 150;
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      
-      // Format the summary text with clean number formatting
-      doc.text(`Summary: ${reportData.productSalesDetails.length} products, ${totalQuantity} units sold, ₹${formatNumber(totalRevenue)} revenue, ${formatProfit(totalProfit)} profit`, 14, finalY + 15);
-      
-      // Add insights with clean, consistent formatting
-      if (reportData.mostSellingProduct) {
-        doc.text(`Most Selling Product: ${reportData.mostSellingProduct.name} (${reportData.mostSellingProduct.totalQuantity} units)`, 14, finalY + 25);
-      }
-      
-      if (reportData.mostProfitableProduct) {
-        doc.text(`Most Profitable Product: ${reportData.mostProfitableProduct.name} (${formatProfit(reportData.mostProfitableProduct.totalProfit)})`, 14, finalY + 35);
-      }
+
+      // Remove summary and most-selling/profitable products (nothing after the table)
+      // Add only footer with page info
+
     } else {
-      // For other reports (daily, weekly, monthly, yearly)
-      // Add a simple summary table based on the period
+      // For other periods (daily, weekly, etc)
       const data = reportData[`${period}Sales`] || [];
-      
-      // Format numeric values properly
-      const formattedData = data.map((item: any) => [
-        item.day || item.week || item.name || item.year || 'Unknown',
-        `₹${formatNumber(item.sales)}`
+      const tableBody = data.map((item: any) => [
+        item.day || item.week || item.name || item.year || "Unknown",
+        formatNumberPlain(item.sales),
       ]);
-      
       autoTable(doc, {
-        head: [['Period', 'Sales Amount']],
-        body: formattedData,
+        head: [[period.charAt(0).toUpperCase() + period.slice(1), "Sales Amount"]],
+        body: tableBody,
         startY: 40,
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
         styles: {
+          fontSize: 10,
           cellPadding: 5,
-          fontSize: 10
         },
         columnStyles: {
-          1: { halign: 'right' }
-        }
+          0: { halign: "left" },
+          1: { halign: "right" },
+        },
+        margin: { left: 14, right: 14 },
       });
+      // No summary, just table
     }
-    
+
     // Add footer
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(
-        `Page ${i} of ${pageCount} - ${SHOP_NAME} - Generated on ${new Date().toLocaleString()}`,
+        `Page ${i} of ${pageCount} - Vivaas - Generated on ${new Date().toLocaleString()}`,
         doc.internal.pageSize.getWidth() / 2,
         doc.internal.pageSize.getHeight() - 10,
         { align: "center" }
       );
     }
-    
-    return doc.output('blob');
+
+    return doc.output("blob");
   } catch (error) {
     console.error("Error generating sales report PDF:", error);
-    return new Blob([`Error generating sales report for ${period}`], { type: 'text/plain' });
+    return new Blob([`Error generating sales report for ${period}`], {
+      type: "text/plain",
+    });
   }
 };
 
@@ -581,9 +601,13 @@ function formatProfit(amount: number): string {
 
 // Helper function for formatting numbers for CSV (no currency symbol)
 function formatNumberPlain(amount: number): string {
-  if (typeof amount !== 'number') {
-    return '0.00';
+  if (typeof amount !== 'number' || isNaN(amount)) {
+    return "0.00";
   }
-  
-  return amount.toFixed(2);
+  return amount.toLocaleString("en-IN", {
+    style: "decimal",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    useGrouping: true,
+  });
 }
